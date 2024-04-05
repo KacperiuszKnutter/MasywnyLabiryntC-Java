@@ -1,25 +1,24 @@
 #include <stdio.h>
-#include <limits.h>
-#include <stdbool.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
-#ifndef BFSQUEUE_H
-#define BFSQUEUE_H
-
-typedef struct node{
+// Definition of the node structure
+typedef struct Node {
     int position;
-    struct node *next;
+    char direction; // Add this line to include a direction field
+    struct Node *next;
 } *node_t;
+// Definition of the queue structure
 
-typedef struct {
+typedef struct Queue {
     node_t start;
     node_t end;
 } *queue_t;
 
-void initialize_queue(queue_t new_queue);
 
-bool enqueue(queue_t queue, int position);
+// Function declarations (as you've provided)
+void initialize_queue(queue_t queue);
+bool enqueue(queue_t queue, int position, char direction);
+bool dequeue(queue_t queue, int *position, char *direction);
+void free_queue(queue_t queue);
 
-int dequeue(queue_t queue);
-
-#endif //BFSQUEUE_H

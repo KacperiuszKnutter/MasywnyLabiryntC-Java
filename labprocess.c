@@ -2,13 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <labprocess.h>
+#include "labprocess.h"
 
 //Sprawdza czy badane miejsce w labiryncie nadaje sie do wstawienia wierzcholka
 bool is_Valid(char* characters, char orgch) {
     int counter = 0;
     //Nie rozwazamy scian ani miejsc w ktorych juz sa wierzcholki
-    if (orgch == 'X' || orgch == 'O' || orgch == '\n') {
+    if (orgch != ' ') {
         return false;
     }
 
@@ -18,8 +18,8 @@ bool is_Valid(char* characters, char orgch) {
         }
     }
     //Pomijamy korytarze bo nie chcemy dodatkowych O
-    if ((characters[0] == ' ' && characters[1] != ' ' && characters[2] != ' ' && characters[3] == ' ') ||
-        (characters[0] != ' ' && characters[1] == ' ' && characters[2] == ' ' && characters[3] != ' ')) {
+    if ((characters[0] == ' ' && characters[1] != ' ' && characters[2] == ' ' && characters[3] != ' ') ||
+        (characters[0] != ' ' && characters[1] == ' ' && characters[2] != ' ' && characters[3] == ' ')) {
         return false;
     } else {
         if ((orgch == ' ' && counter >= 2) || orgch == 'P' || orgch == 'K') {
@@ -30,12 +30,12 @@ bool is_Valid(char* characters, char orgch) {
     return false;
 }
 
-//Znajduje otoczenie dla kazdego miejsca w labiryncie i przechowuje je w wektorze
+//Znajduje otoczenie dla kazdego miejsca w labiryncie i przechowuje je w wektorze characters
 void mark_Branching_Points(FILE* default_file, int rows, int cols) {
     int capacity = rows * cols;
     long position = 0;
-    int row_num[] = {-1, 0, 0, 1};
-    int col_num[] = {0, -1, 1, 0};
+    int row_num[] = {-1, 0, 1, 0};
+    int col_num[] = {0, 1, 0, -1};
     char ch;
     char originalchar;
     char characters[5];
@@ -57,12 +57,16 @@ void mark_Branching_Points(FILE* default_file, int rows, int cols) {
                 if (row >= 0 && row < rows && col >= 0 && col < cols) {
                     fseek(default_file, row * (cols) + col, SEEK_SET);
                     fread(&ch, sizeof(char), 1, default_file);
-
-                    if (ch == 'O' || ch == 'P' || ch == 'K') {
-                        characters[i] = ' ';
+                    if (ch == 'X') {
+                        characters[i] = 'X';
                     }
-                    characters[i] = ch;
-                } else {
+                    //Wszystko co nie jest X traktujemy jako potencjonalna droge
+                    else {
+                    characters[i] = ' ';
+                    }
+                }
+                //Jak wyjdzie poza plansze to X
+                else{
                     characters[i] = 'X';
                 }
             }
@@ -70,14 +74,38 @@ void mark_Branching_Points(FILE* default_file, int rows, int cols) {
             characters[4] = '\0';
             fseek(default_file, position, SEEK_SET);
             if (is_Valid(characters, originalchar)) {
-                fwrite("O", sizeof(char), 1, default_file);
-                ileO++;
+
+                //Wszystkie mozliwe opcje skretow
+                char* options[] = {
+                    (char[]){' ', 'X', 'X', 'X', '\0'},
+                    (char[]){'X', ' ', 'X', 'X', '\0'},
+                    (char[]){'X', 'X', ' ', 'X', '\0'},
+                    (char[]){'X', 'X', 'X', ' ', '\0'},
+                    (char[]){' ', ' ', 'X', 'X', '\0'},
+                    (char[]){'X', ' ', ' ', 'X', '\0'},
+                    (char[]){'X', 'X', ' ', ' ', '\0'},
+                    (char[]){' ', 'X', 'X', ' ', '\0'},
+                    (char[]){' ', ' ', 'X', ' ', '\0'},
+                    (char[]){' ', ' ', ' ', 'X', '\0'},
+                    (char[]){'X', ' ', ' ', ' ', '\0'},
+                    (char[]){' ', 'X', ' ', ' ', '\0'}
+                };
+                //Każdemu rodzajowi skrętu bądź rozwidlenia przysługuje literka
+                char alphabet[] = "abcdefghijkl";
+                
+                //Wpisanie odpowiedniej literki w miejsce rozwidlenia
+                for(int i = 0; i< 12; i++)
+                {
+                    if(strcmp(characters, options[i]) == 0)
+                    {
+                        fwrite(&alphabet[i], sizeof(char), 1, default_file);
+                        ileO++;
+                    }
+                }
+                
+                
             }
         position++;
     }
-    printf("Tyle jest wierzcholkow --> %d\n",ileO);
+    printf("Tyle jest wierzcholkow --> %d\n", ileO);
 }
-
-
-
-
