@@ -12,15 +12,122 @@ tylko trzeba mozliwe zmienic w strukturze kolejki dodanie child i parent bo bedz
 
 
 // char peekPath()
+typedef struct MazeSize{
+    int columns;
+    int rows;
+}MazeSize;
+MazeSize mazeSize;
 
 
-void bfsSearch(queue_t myQueue)
+int newPositionGetter(int position, char direction)
 {
-    int pos;
-    char dir;
-    while (dequeue(myQueue, &pos, &dir)) {
-        printf("Dequeued: Position = %d, Direction = %c\n", pos, dir);
+    if(direction == 'G')
+    {
+        position -= mazeSize.columns;
     }
+    else if(direction == 'P')
+    {
+        position += 1;
+    }
+    else if(direction == 'D')
+    {
+        position += mazeSize.columns;
+    }
+    else
+    {
+        position -= 1;
+    }
+
+    return position;
+}
+
+ void addPathsToQueue(queue_t myQueue, char originalchar, int position, char direction)
+ {
+    //Wszystkie mozliwe opcje skretow
+    char* options[] = {
+        (char[]){' ', 'X', 'X', 'X', '\0'},
+        (char[]){'X', ' ', 'X', 'X', '\0'},
+        (char[]){'X', 'X', ' ', 'X', '\0'},
+        (char[]){'X', 'X', 'X', ' ', '\0'},
+        (char[]){' ', ' ', 'X', 'X', '\0'},
+        (char[]){'X', ' ', ' ', 'X', '\0'},
+        (char[]){'X', 'X', ' ', ' ', '\0'},
+        (char[]){' ', 'X', 'X', ' ', '\0'},
+        (char[]){' ', ' ', 'X', ' ', '\0'},
+        (char[]){' ', ' ', ' ', 'X', '\0'},
+        (char[]){'X', ' ', ' ', ' ', '\0'},
+        (char[]){' ', 'X', ' ', ' ', '\0'}
+    };
+    //Każdemu rodzajowi skrętu bądź rozwidlenia przysługuje literka
+    char alphabet[] = "abcdefghijkl";
+    int originalPosition = position;
+    char Directions[] = "GPDL";
+
+    char skipDirection;
+    if (direction == 'P') {
+        skipDirection = 'L';
+    } else if (direction == 'G') {
+        skipDirection = 'D';
+    } else if (direction == 'L') {
+        skipDirection = 'P';
+    } else {
+        skipDirection = 'G';
+    }
+
+    for(int i = 0; i < 12; i++)
+    {
+        if(alphabet[i] == originalchar)
+        {
+            for(int j = 0; j<4; j++)
+            {
+                if(options[i][j] == ' ' && skipDirection != Directions[j])
+                {
+                    position = newPositionGetter(originalPosition, Directions[j]);
+                    printf("%d %d\n", position, Directions[j]);
+                    enqueue(myQueue, position, Directions[j]);
+                }
+            }
+            break;
+        }
+    }
+
+ }
+
+int bfsSearch(FILE* default_file, queue_t myQueue)
+{
+    char direction;
+    char originalchar;
+    int originalPos;
+    dequeue(myQueue, &originalPos, &direction);
+
+    fseek(default_file, originalPos, SEEK_SET);
+    fread(&originalchar, sizeof(char), 1, default_file);
+    fseek(default_file, originalPos, SEEK_SET);
+
+
+    printf("%d\n", originalPos);
+    printf("%c\n", originalchar);
+    if(originalchar == 'K')
+    {
+        printf("Koniec");
+        return 0;
+    }
+    if(originalchar == ' ')
+    {
+        printf("Ide prosto\n");
+        int position = newPositionGetter(originalPos, direction);
+        enqueue(myQueue, position, direction);
+        fwrite("X", sizeof(char), 1, default_file);
+    }
+    else if(originalchar != 'X')
+    {
+        printf("Skrecam\n");
+        addPathsToQueue(myQueue, originalchar, originalPos, direction);
+
+    }
+
+
+    return 1;    
 }
 
 
@@ -64,7 +171,9 @@ int main() {
     mark_Branching_Points(default_file, rows, columns);
 
     printf("Columns: %d\n", columns);
+    mazeSize.columns = columns;
     printf("Rows: %d\n", rows);
+    mazeSize.rows = rows;
     printf("Pozycja Konc: %d\n", posK);
     printf("Pozycja Pocz: %d\n", posP);
 
@@ -73,7 +182,17 @@ int main() {
     queue_t myQueue = &myQueueStruct;
     initialize_queue(myQueue);
     enqueue(myQueue, posP, 'P');
-    bfsSearch(myQueue);
+
+    int licznik = 0;
+    int result = 1;
+    while(result != 0 && licznik <3)
+    {
+        licznik++;
+        result = bfsSearch(default_file, myQueue);
+    }
+
+    free_queue(myQueue);
+
 
 
 
