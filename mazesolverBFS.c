@@ -55,10 +55,34 @@ int backtrack(FILE* default_file, queue_t myQueue)
     printf("[%c]\n", originalchar);
     printf("[%d]\n", myQueue->ile_node);
 
+    //Oblicz Reverse Direction
+    char reverseDir;
+    if(direction == 'G')
+    {
+        reverseDir = 'D';
+    }
+    else if(direction == 'P')
+    {
+        reverseDir = 'L';
+    }
+    else if(direction == 'D')
+    {
+        reverseDir = 'G';
+    }
+    else
+    {
+        reverseDir = 'P';
+    }
+    if(myQueue->ile_node < 0)
+    {
+        printf("Usunieto elegancko sciezki");
+        return 0;
+    }
+
     if(originalchar == 'P')
     {
         printf("Backtracking zakonczony sukcesem");
-        return 0;
+        // return 0;
     }
     else if(originalchar == 'O')
     {
@@ -70,38 +94,40 @@ int backtrack(FILE* default_file, queue_t myQueue)
     {
         char currentCharacter;
         char Directions[] = "GPDL";
+        int wykonanoenqueue = 0;
 
         for(int i = 0; i < 4; i++)
         {
-            int position = newPositionGetter(originalPos, Directions[i]);
-            fseek(default_file, position, SEEK_SET);
-            fread(&currentCharacter, sizeof(char), 1, default_file);
-            fseek(default_file, originalPos, SEEK_SET);
-            if(currentCharacter == 'O'||currentCharacter == 'B')
+            //Sprawdz tylko directions z ktorych nie przyszlismy
+            if(reverseDir != Directions[i])
             {
-                enqueue(myQueue, position, Directions[i]);
+                int position = newPositionGetter(originalPos, Directions[i]);
+                fseek(default_file, position, SEEK_SET);
+                fread(&currentCharacter, sizeof(char), 1, default_file);
+                fseek(default_file, originalPos, SEEK_SET);
+                if(currentCharacter == 'O'||currentCharacter == 'B'||currentCharacter == 'P')
+                {
+                    enqueue(myQueue, position, Directions[i]);
+                    wykonanoenqueue = 1;
+                }
+                //Przypadek Gdy usuniemy slepy zauek i w danym rozwidleniu nie ma juz O ale sa S
+                if(currentCharacter == 'S')
+                {
+                    wykonanoenqueue = 1;
+                }
             }
+        }
+        if(wykonanoenqueue == 0)
+        {
+            //Cofnij sie i wstaw x
+            fwrite("X", sizeof(char), 1, default_file);
+            int position = newPositionGetter(originalPos, reverseDir);
+            enqueue(myQueue, position, reverseDir);
         }
     }
     else if(originalchar == 'X')
     {
-        char reverseDir;
-        if(direction == 'G')
-        {
-            reverseDir = 'D';
-        }
-        else if(direction == 'P')
-        {
-            reverseDir = 'L';
-        }
-        else if(direction == 'D')
-        {
-            reverseDir = 'G';
-        }
-        else
-        {
-            reverseDir = 'P';
-        }
+        
         int position = newPositionGetter(originalPos, reverseDir);
         enqueue(myQueue, position, reverseDir);
         
@@ -215,7 +241,37 @@ int bfsSearch(FILE* default_file, queue_t myQueue)
 }
 
 
+void transformAndWrite(FILE *inputFile, FILE *outputFile) {
+    char c;
+    rewind(inputFile);
+    // Check if either file pointer is NULL
+    if (inputFile == NULL || outputFile == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
 
+    // Read each character from the input file
+    while (fscanf(inputFile, "%c", &c) == 1) {
+        // If the character is 'B', change it to 'S'
+        if( c != 'P' && c != 'K' && c != '\n')
+        {
+            if (c == 'B') {
+                c = ' ';
+            }
+            else if(c == 'S')
+            {
+                c = ' ';
+            }
+            // If the character is not '\n' or 'S', change it to 'X'
+            else {
+                c = 'X';
+            }
+        }
+        
+        // Write the transformed character to the output file
+        fprintf(outputFile, "%c", c);
+    }
+}
 int main() {
 
     FILE* default_file;
@@ -267,11 +323,11 @@ int main() {
     initialize_queue(myQueue);
     enqueue(myQueue, posP, 'P');
 
-    int licznik = 0;
+   
     int result = 1;
     while(result != 0)
     {
-        licznik++;
+        
         result = bfsSearch(default_file, myQueue);
     }
 
@@ -281,14 +337,21 @@ int main() {
     initialize_queue(backtrackQueue);
     enqueue(backtrackQueue, posK-1, 'L');
     result = 1;
-
+    int licznik = 0;
     while(result != 0)
     {
+        licznik++;
         result = backtrack(default_file, backtrackQueue);
     }
     
     free_queue(myQueue);
 
+    FILE* output_file;
+    char fileName1[] = "result.txt";
+    output_file = fopen(fileName1, "w");
+    transformAndWrite(default_file, output_file);
+
     fclose(default_file);
+    fclose(output_file);
     return 0;
 }

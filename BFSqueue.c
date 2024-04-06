@@ -45,6 +45,7 @@ bool dequeue(queue_t queue, int *position, char *direction) {
 
     if (queue->ile_node <= 0) {
         fprintf(stderr, "Kolejka jest pusta!\n");
+        queue->ile_node = -1;
         return false;
     }
 
