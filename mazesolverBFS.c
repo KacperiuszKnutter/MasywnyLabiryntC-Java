@@ -41,91 +41,75 @@ int newPositionGetter(int position, char direction)
     return position;
 }
 
- void addPathsToQueue(queue_t myQueue, char originalchar, int position, char direction)
- {
-    //Wszystkie mozliwe opcje skretow
-    char* options[] = {
-        (char[]){' ', 'X', 'X', 'X', '\0'},
-        (char[]){'X', ' ', 'X', 'X', '\0'},
-        (char[]){'X', 'X', ' ', 'X', '\0'},
-        (char[]){'X', 'X', 'X', ' ', '\0'},
-        (char[]){' ', ' ', 'X', 'X', '\0'},
-        (char[]){'X', ' ', ' ', 'X', '\0'},
-        (char[]){'X', 'X', ' ', ' ', '\0'},
-        (char[]){' ', 'X', 'X', ' ', '\0'},
-        (char[]){' ', ' ', 'X', ' ', '\0'},
-        (char[]){' ', ' ', ' ', 'X', '\0'},
-        (char[]){'X', ' ', ' ', ' ', '\0'},
-        (char[]){' ', 'X', ' ', ' ', '\0'}
-    };
-    //Każdemu rodzajowi skrętu bądź rozwidlenia przysługuje literka
-    char alphabet[] = "abcdefghijkl";
-    int originalPosition = position;
-    char Directions[] = "GPDL";
-
-    char skipDirection;
-    if (direction == 'P') {
-        skipDirection = 'L';
-    } else if (direction == 'G') {
-        skipDirection = 'D';
-    } else if (direction == 'L') {
-        skipDirection = 'P';
-    } else {
-        skipDirection = 'G';
-    }
-
-    for(int i = 0; i < 12; i++)
-    {
-        if(alphabet[i] == originalchar)
-        {
-            for(int j = 0; j<4; j++)
-            {
-                if(options[i][j] == ' ' && skipDirection != Directions[j])
-                {
-                    position = newPositionGetter(originalPosition, Directions[j]);
-                    printf("%d %d\n", position, Directions[j]);
-                    enqueue(myQueue, position, Directions[j]);
-                }
-            }
-            break;
-        }
-    }
-
- }
 
 int bfsSearch(FILE* default_file, queue_t myQueue)
 {
     char direction;
     char originalchar;
     int originalPos;
+    int wykonanoenqueue = 0;
     dequeue(myQueue, &originalPos, &direction);
 
     fseek(default_file, originalPos, SEEK_SET);
     fread(&originalchar, sizeof(char), 1, default_file);
     fseek(default_file, originalPos, SEEK_SET);
 
-
-    printf("%d\n", originalPos);
-    printf("%c\n", originalchar);
+    printf("[%c]\n", originalchar);
+    printf("[%d]\n", myQueue->ile_node);
     if(originalchar == 'K')
     {
         printf("Koniec");
         return 0;
     }
+    
     if(originalchar == ' ')
     {
-        printf("Ide prosto\n");
         int position = newPositionGetter(originalPos, direction);
         enqueue(myQueue, position, direction);
-        fwrite("X", sizeof(char), 1, default_file);
+        wykonanoenqueue = 1;
+        fwrite("O", sizeof(char), 1, default_file);
     }
-    else if(originalchar != 'X')
+    else if(originalchar != 'X' && originalchar != 'O')
     {
-        printf("Skrecam\n");
-        addPathsToQueue(myQueue, originalchar, originalPos, direction);
+        char currentCharacter;
+        char Directions[] = "GPDL";
 
+        for(int i = 0; i < 4; i++)
+        {
+            int position = newPositionGetter(originalPos, Directions[i]);
+            fseek(default_file, position, SEEK_SET);
+            fread(&currentCharacter, sizeof(char), 1, default_file);
+            fseek(default_file, originalPos, SEEK_SET);
+            if(currentCharacter != 'X' && currentCharacter != 'O' && currentCharacter != '\n')
+            {
+                enqueue(myQueue, position, Directions[i]);
+                wykonanoenqueue = 1;
+            }
+        }
+        fwrite("O", sizeof(char), 1, default_file);
     }
+    else if(originalchar == 'O')
+    {
+        char currentCharacter;
+        char Directions[] = "GPDL";
+        char reversedDirections[] = "DLGP";
 
+
+        for(int i = 0; i < 4; i++)
+        {
+            int position = newPositionGetter(originalPos, Directions[i]);
+            fseek(default_file, position, SEEK_SET);
+            fread(&currentCharacter, sizeof(char), 1, default_file);
+            fseek(default_file, originalPos, SEEK_SET);
+            if(currentCharacter != 'X' && currentCharacter != 'O' && currentCharacter != '\n')
+            {
+                enqueue(myQueue, position, Directions[i]);
+                wykonanoenqueue = 1;
+            }
+        }
+        
+    }
+     
 
     return 1;    
 }
@@ -185,16 +169,13 @@ int main() {
 
     int licznik = 0;
     int result = 1;
-    while(result != 0 && licznik <3)
+    while(result != 0)
     {
         licznik++;
         result = bfsSearch(default_file, myQueue);
     }
 
     free_queue(myQueue);
-
-
-
 
 
     fclose(default_file);

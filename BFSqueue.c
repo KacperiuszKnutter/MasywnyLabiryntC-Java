@@ -9,6 +9,7 @@ void initialize_queue(queue_t queue) {
         queue->start = NULL;
         queue->end = NULL;
     }
+    queue->ile_node = 0;
 }
 
 // Adds a new element to the queue
@@ -17,13 +18,13 @@ bool enqueue(queue_t queue, int position, char direction) {
     if (queue == NULL) {
         return false;
     }
+    queue->ile_node += 1;
 
     node_t new_node = (node_t) malloc(sizeof(struct Node));
 
     if (new_node == NULL) {
         return false;
     }
-
     new_node->position = position;
     new_node->direction = direction; 
     new_node->next = NULL;
@@ -42,10 +43,12 @@ bool enqueue(queue_t queue, int position, char direction) {
 
 bool dequeue(queue_t queue, int *position, char *direction) {
 
-    if (queue == NULL || queue->start == NULL) {
+    if (queue->ile_node <= 0) {
         fprintf(stderr, "Kolejka jest pusta!\n");
         return false;
     }
+
+    queue->ile_node -= 1;
 
     node_t front_node = queue->start;
     if (position != NULL) *position = front_node->position;
@@ -82,4 +85,5 @@ void free_queue(queue_t queue) {
     // Reset the queue's pointers to indicate it's empty
     queue->start = NULL;
     queue->end = NULL;
+    queue->ile_node = 0;
 }

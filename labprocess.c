@@ -74,35 +74,9 @@ void mark_Branching_Points(FILE* default_file, int rows, int cols) {
             characters[4] = '\0';
             fseek(default_file, position, SEEK_SET);
             if (is_Valid(characters, originalchar)) {
-
-                //Wszystkie mozliwe opcje skretow
-                char* options[] = {
-                    (char[]){' ', 'X', 'X', 'X', '\0'},
-                    (char[]){'X', ' ', 'X', 'X', '\0'},
-                    (char[]){'X', 'X', ' ', 'X', '\0'},
-                    (char[]){'X', 'X', 'X', ' ', '\0'},
-                    (char[]){' ', ' ', 'X', 'X', '\0'},
-                    (char[]){'X', ' ', ' ', 'X', '\0'},
-                    (char[]){'X', 'X', ' ', ' ', '\0'},
-                    (char[]){' ', 'X', 'X', ' ', '\0'},
-                    (char[]){' ', ' ', 'X', ' ', '\0'},
-                    (char[]){' ', ' ', ' ', 'X', '\0'},
-                    (char[]){'X', ' ', ' ', ' ', '\0'},
-                    (char[]){' ', 'X', ' ', ' ', '\0'}
-                };
-                //Każdemu rodzajowi skrętu bądź rozwidlenia przysługuje literka
-                char alphabet[] = "abcdefghijkl";
-                
-                //Wpisanie odpowiedniej literki w miejsce rozwidlenia
-                for(int i = 0; i< 12; i++)
-                {
-                    if(strcmp(characters, options[i]) == 0)
-                    {
-                        fwrite(&alphabet[i], sizeof(char), 1, default_file);
-                        ileO++;
-                    }
-                }
-                
+              
+                fwrite("B", sizeof(char), 1, default_file);
+                ileO++;
                 
             }
         position++;
