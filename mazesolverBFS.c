@@ -41,6 +41,22 @@ int newPositionGetter(int position, char direction)
     return position;
 }
 
+int backtrack(FILE* default_file, queue_t myQueue) {
+    char direction;
+    char originalchar;
+    int currentPosition;
+    dequeue(myQueue, &currentPosition, &direction);
+
+    fseek(default_file, currentPosition, SEEK_SET);
+    fread(&originalchar, sizeof(char), 1, default_file);
+    fseek(default_file, currentPosition, SEEK_SET);
+    if(originalchar == 'P')
+    {
+        printf("Koniec - Znaleziono najkrótszą sciezke");
+        return 0;
+    }
+    return 1;
+}
 
 int bfsSearch(FILE* default_file, queue_t myQueue)
 {
@@ -86,7 +102,7 @@ int bfsSearch(FILE* default_file, queue_t myQueue)
                 wykonanoenqueue = 1;
             }
         }
-        fwrite("O", sizeof(char), 1, default_file);
+        //fwrite("O", sizeof(char), 1, default_file);
     }
     else if(originalchar == 'O')
     {
@@ -119,7 +135,7 @@ int bfsSearch(FILE* default_file, queue_t myQueue)
 int main() {
 
     FILE* default_file;
-    char fileName[] = "test.txt";
+    char fileName[] = "maze (3).txt";
     default_file = fopen(fileName, "r+");
     if (!default_file) {
         perror("Error opening file eeeeeeee");
@@ -177,6 +193,14 @@ int main() {
 
     free_queue(myQueue);
 
+    // enqueue(myQueue, posK, 'K');
+
+    // while(result != 0)
+    // {
+    //     result = backtrack(default_file, myQueue);
+    // }
+    
+    // free_queue(myQueue);
 
     fclose(default_file);
     return 0;
