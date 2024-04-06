@@ -13,6 +13,7 @@ typedef struct Node {
 typedef struct Queue {
     node_t start;
     node_t end;
+    int ile_node;
 } *queue_t;
 
 
