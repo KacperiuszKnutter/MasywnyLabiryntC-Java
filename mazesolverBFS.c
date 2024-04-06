@@ -41,22 +41,85 @@ int newPositionGetter(int position, char direction)
     return position;
 }
 
-int backtrack(FILE* default_file, queue_t myQueue) {
+
+int backtrack(FILE* default_file, queue_t myQueue)
+{
     char direction;
     char originalchar;
-    int currentPosition;
-    dequeue(myQueue, &currentPosition, &direction);
-
-    fseek(default_file, currentPosition, SEEK_SET);
+    int originalPos;
+    dequeue(myQueue, &originalPos, &direction);
+    fseek(default_file, originalPos, SEEK_SET);
     fread(&originalchar, sizeof(char), 1, default_file);
-    fseek(default_file, currentPosition, SEEK_SET);
+    fseek(default_file, originalPos, SEEK_SET);
+
+    printf("[%c]\n", originalchar);
+    printf("[%d]\n", myQueue->ile_node);
+
     if(originalchar == 'P')
     {
-        printf("Koniec - Znaleziono najkrótszą sciezke");
+        printf("Backtracking zakonczony sukcesem");
         return 0;
     }
+    else if(originalchar == 'O')
+    {
+        int position = newPositionGetter(originalPos, direction);
+        enqueue(myQueue, position, direction);
+        fwrite("S", sizeof(char), 1, default_file);
+    }
+    else if(originalchar == 'B'||originalchar == 'K')
+    {
+        char currentCharacter;
+        char Directions[] = "GPDL";
+
+        for(int i = 0; i < 4; i++)
+        {
+            int position = newPositionGetter(originalPos, Directions[i]);
+            fseek(default_file, position, SEEK_SET);
+            fread(&currentCharacter, sizeof(char), 1, default_file);
+            fseek(default_file, originalPos, SEEK_SET);
+            if(currentCharacter == 'O'||currentCharacter == 'B')
+            {
+                enqueue(myQueue, position, Directions[i]);
+            }
+        }
+    }
+    else if(originalchar == 'X')
+    {
+        char reverseDir;
+        if(direction == 'G')
+        {
+            reverseDir = 'D';
+        }
+        else if(direction == 'P')
+        {
+            reverseDir = 'L';
+        }
+        else if(direction == 'D')
+        {
+            reverseDir = 'G';
+        }
+        else
+        {
+            reverseDir = 'P';
+        }
+        int position = newPositionGetter(originalPos, reverseDir);
+        enqueue(myQueue, position, reverseDir);
+        
+    }
+    else if(originalchar == 'S')
+    {
+        int position = newPositionGetter(originalPos, direction);
+        enqueue(myQueue, position, direction);
+        fwrite("X", sizeof(char), 1, default_file);
+    }
+
+
+
     return 1;
 }
+
+
+
 
 int bfsSearch(FILE* default_file, queue_t myQueue)
 {
@@ -108,8 +171,29 @@ int bfsSearch(FILE* default_file, queue_t myQueue)
     {
         char currentCharacter;
         char Directions[] = "GPDL";
-        char reversedDirections[] = "DLGP";
 
+        char reverseDir;
+        if(direction == 'G')
+        {
+            reverseDir = 'D';
+        }
+        else if(direction == 'P')
+        {
+            reverseDir = 'L';
+        }
+        else if(direction == 'D')
+        {
+            reverseDir = 'G';
+        }
+        else
+        {
+            reverseDir = 'P';
+        }
+
+        int position = newPositionGetter(originalPos, reverseDir);
+        fseek(default_file, position, SEEK_SET);
+        fwrite("X", sizeof(char), 1, default_file);
+        fseek(default_file, originalPos, SEEK_SET);
 
         for(int i = 0; i < 4; i++)
         {
@@ -135,7 +219,7 @@ int bfsSearch(FILE* default_file, queue_t myQueue)
 int main() {
 
     FILE* default_file;
-    char fileName[] = "maze (3).txt";
+    char fileName[] = "test.txt";
     default_file = fopen(fileName, "r+");
     if (!default_file) {
         perror("Error opening file eeeeeeee");
@@ -193,14 +277,17 @@ int main() {
 
     free_queue(myQueue);
 
-    // enqueue(myQueue, posK, 'K');
+    queue_t backtrackQueue = &myQueueStruct;
+    initialize_queue(backtrackQueue);
+    enqueue(backtrackQueue, posK-1, 'L');
+    result = 1;
 
-    // while(result != 0)
-    // {
-    //     result = backtrack(default_file, myQueue);
-    // }
+    while(result != 0)
+    {
+        result = backtrack(default_file, backtrackQueue);
+    }
     
-    // free_queue(myQueue);
+    free_queue(myQueue);
 
     fclose(default_file);
     return 0;
