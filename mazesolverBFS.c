@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "labprocess.h"
 #include "BFSqueue.h"
+#include "DFSstack.h"
 
 /*Tu bedzie glowny program, puszczamy bfs,
 kod dodam pozniej bo jest w miare ready,
@@ -42,106 +43,88 @@ int newPositionGetter(int position, char direction)
 }
 
 
-int backtrack(FILE* default_file, queue_t myQueue)
+int dfsSolve(FILE* default_file, obecnekroki droga, int backTrack)
 {
     char direction;
     char originalchar;
     int originalPos;
-    dequeue(myQueue, &originalPos, &direction);
+    int wykonanoenqueue = 0;
+    peekPath(droga, &originalPos, &direction);
+    
     fseek(default_file, originalPos, SEEK_SET);
     fread(&originalchar, sizeof(char), 1, default_file);
     fseek(default_file, originalPos, SEEK_SET);
 
     printf("[%c]\n", originalchar);
-    printf("[%d]\n", myQueue->ile_node);
 
-    //Oblicz Reverse Direction
-    char reverseDir;
-    if(direction == 'G')
-    {
-        reverseDir = 'D';
-    }
-    else if(direction == 'P')
-    {
-        reverseDir = 'L';
-    }
-    else if(direction == 'D')
-    {
-        reverseDir = 'G';
-    }
-    else
-    {
-        reverseDir = 'P';
-    }
-    if(myQueue->ile_node < 0)
-    {
-        printf("Usunieto elegancko sciezki");
-        return 0;
-    }
-
+    
     if(originalchar == 'P')
     {
-        printf("Backtracking zakonczony sukcesem");
-        // return 0;
+        printf("DFS zakonczony sukcesem");
+        return 0;
     }
     else if(originalchar == 'O')
     {
-        int position = newPositionGetter(originalPos, direction);
-        enqueue(myQueue, position, direction);
-        fwrite("S", sizeof(char), 1, default_file);
+        if(backTrack == 1)
+        {
+            int position = newPositionGetter(originalPos, direction);
+            fwrite("S", sizeof(char), 1, default_file);
+            appendElement(droga, position, direction);
+        }
+        else{
+            popElement(droga, &originalPos, &direction);
+            fwrite("X", sizeof(char), 1, default_file);
+            return -1;
+        }
     }
-    else if(originalchar == 'B'||originalchar == 'K')
+    else if(originalchar == 'B' || originalchar == 'K')
     {
         char currentCharacter;
         char Directions[] = "GPDL";
         int wykonanoenqueue = 0;
-
         for(int i = 0; i < 4; i++)
         {
-            //Sprawdz tylko directions z ktorych nie przyszlismy
-            if(reverseDir != Directions[i])
+            int position = newPositionGetter(originalPos, Directions[i]);
+            fseek(default_file, position, SEEK_SET);
+            fread(&currentCharacter, sizeof(char), 1, default_file);
+            fseek(default_file, originalPos, SEEK_SET);
+            if(currentCharacter == 'O'||currentCharacter == 'B'||currentCharacter == 'P')
             {
-                int position = newPositionGetter(originalPos, Directions[i]);
-                fseek(default_file, position, SEEK_SET);
-                fread(&currentCharacter, sizeof(char), 1, default_file);
-                fseek(default_file, originalPos, SEEK_SET);
-                if(currentCharacter == 'O'||currentCharacter == 'B'||currentCharacter == 'P')
-                {
-                    enqueue(myQueue, position, Directions[i]);
-                    wykonanoenqueue = 1;
-                }
-                //Przypadek Gdy usuniemy slepy zauek i w danym rozwidleniu nie ma juz O ale sa S
-                if(currentCharacter == 'S')
-                {
-                    wykonanoenqueue = 1;
-                }
+                appendElement(droga, position, Directions[i]);
+                wykonanoenqueue = 1;
+                break;
             }
+            //Przypadek Gdy usuniemy slepy zauek i w danym rozwidleniu nie ma juz O ale sa S
+            
         }
         if(wykonanoenqueue == 0)
         {
             //Cofnij sie i wstaw x
             fwrite("X", sizeof(char), 1, default_file);
-            int position = newPositionGetter(originalPos, reverseDir);
-            enqueue(myQueue, position, reverseDir);
+            popElement(droga, &originalPos, &direction);
+            return -1;
         }
     }
-    else if(originalchar == 'X')
+    else if(originalchar == 'X' || originalchar == ' ')
     {
-        
-        int position = newPositionGetter(originalPos, reverseDir);
-        enqueue(myQueue, position, reverseDir);
-        
+        popElement(droga, &originalPos, &direction);
+        fwrite("X", sizeof(char), 1, default_file);
+        return -1;
     }
     else if(originalchar == 'S')
     {
-        int position = newPositionGetter(originalPos, direction);
-        enqueue(myQueue, position, direction);
+        popElement(droga, &originalPos, &direction);
         fwrite("X", sizeof(char), 1, default_file);
+        return -1;
     }
-
-
-
+    else if(originalchar == '\n')
+    {
+        popElement(droga, &originalPos, &direction);
+        fwrite("\n", sizeof(char), 1, default_file);
+        return -1;
+    }
     return 1;
+
 }
 
 
@@ -174,7 +157,7 @@ int bfsSearch(FILE* default_file, queue_t myQueue)
         wykonanoenqueue = 1;
         fwrite("O", sizeof(char), 1, default_file);
     }
-    else if(originalchar != 'X' && originalchar != 'O')
+    else if(originalchar != 'O' && originalchar != 'X')
     {
         char currentCharacter;
         char Directions[] = "GPDL";
@@ -191,7 +174,6 @@ int bfsSearch(FILE* default_file, queue_t myQueue)
                 wykonanoenqueue = 1;
             }
         }
-        //fwrite("O", sizeof(char), 1, default_file);
     }
     else if(originalchar == 'O')
     {
@@ -240,38 +222,63 @@ int bfsSearch(FILE* default_file, queue_t myQueue)
     return 1;    
 }
 
-
 void transformAndWrite(FILE *inputFile, FILE *outputFile) {
     char c;
-    rewind(inputFile);
-    // Check if either file pointer is NULL
+    int charNum = 0;
+    long fileSize;
+
+    // Rewind file and check if either file pointer is NULL
     if (inputFile == NULL || outputFile == NULL) {
         printf("Error opening file.\n");
         return;
     }
 
+    // Determine file size for boundary checks
+    fseek(inputFile, 0, SEEK_END);
+    fileSize = ftell(inputFile);
+    rewind(inputFile);
+
     // Read each character from the input file
     while (fscanf(inputFile, "%c", &c) == 1) {
-        // If the character is 'B', change it to 'S'
-        if( c != 'P' && c != 'K' && c != '\n')
-        {
-            if (c == 'B') {
-                c = ' ';
+        
+        char Directions[] = "GPDL";
+        if (c == 'B') {
+            char currentCharacter;
+            int transformToSpace = 0;
+            for (int i = 0; i < 4; i++) {
+                int position = newPositionGetter(charNum, Directions[i]);
+                if (position >= 0 && position < fileSize) {  // Ensure within bounds
+                    fseek(inputFile, position, SEEK_SET);
+                    if (fread(&currentCharacter, sizeof(char), 1, inputFile) == 1) {
+                        if (currentCharacter == 'S') {
+                            transformToSpace = 1;
+                            break;
+                        }
+                    }
+                    fseek(inputFile, charNum, SEEK_SET);  // Reset position
+                }
             }
-            else if(c == 'S')
-            {
-                c = ' ';
-            }
-            // If the character is not '\n' or 'S', change it to 'X'
-            else {
-                c = 'X';
+            c = transformToSpace ? ' ' : 'X';
+        } else {
+            switch (c) {
+                case 'S':
+                    c = ' ';
+                    break;
+                case 'P':
+                case 'K':
+                case '\n':
+                    break;
+                default:
+                    c = 'X';
             }
         }
-        
+
         // Write the transformed character to the output file
         fprintf(outputFile, "%c", c);
+        charNum++;
     }
 }
+
 int main() {
 
     FILE* default_file;
@@ -317,7 +324,7 @@ int main() {
     printf("Pozycja Konc: %d\n", posK);
     printf("Pozycja Pocz: %d\n", posP);
 
-    //Na początku dodajemy polozenie startowe jako pierwszego node'a do kolejki
+    // //Na początku dodajemy polozenie startowe jako pierwszego node'a do kolejki
     struct Queue myQueueStruct;
     queue_t myQueue = &myQueueStruct;
     initialize_queue(myQueue);
@@ -333,18 +340,18 @@ int main() {
 
     free_queue(myQueue);
 
-    queue_t backtrackQueue = &myQueueStruct;
-    initialize_queue(backtrackQueue);
-    enqueue(backtrackQueue, posK-1, 'L');
+    obecnekroki droga = zainiciuj();
+    appendElement(droga, posK-1, 'L');
+
     result = 1;
-    int licznik = 0;
     while(result != 0)
     {
-        licznik++;
-        result = backtrack(default_file, backtrackQueue);
+        result = dfsSolve(default_file, droga, result);
     }
+
+    zwolnijkroki(droga);
     
-    free_queue(myQueue);
+    
 
     FILE* output_file;
     char fileName1[] = "result.txt";
