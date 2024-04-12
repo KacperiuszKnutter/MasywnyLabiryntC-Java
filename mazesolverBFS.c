@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "labprocess.h"
-#include "BFSqueue.h"
-#include "DFSstack.h"
+#include <labprocess.h>
+#include <BFSqueue.h>
+#include <DFSstack.h>
 
 /*Tu bedzie glowny program, puszczamy bfs,
 kod dodam pozniej bo jest w miare ready,
@@ -19,7 +19,7 @@ typedef struct MazeSize{
 }MazeSize;
 MazeSize mazeSize;
 
-
+//logika do znajdywania nowej pozycji (rozgladanie sie)
 int newPositionGetter(int position, char direction)
 {
     if(direction == 'G')
@@ -42,7 +42,7 @@ int newPositionGetter(int position, char direction)
     return position;
 }
 
-
+//algorytm odpowiedzdzialny za usuniecie slepych sciezek
 int dfsSolve(FILE* default_file, obecnekroki droga, int backTrack)
 {
     char direction;
@@ -60,7 +60,7 @@ int dfsSolve(FILE* default_file, obecnekroki droga, int backTrack)
     
     if(originalchar == 'P')
     {
-        printf("DFS zakonczony sukcesem");
+        printf("DFS zakonczony sukcesem\n");
         return 0;
     }
     else if(originalchar == 'O')
@@ -82,15 +82,29 @@ int dfsSolve(FILE* default_file, obecnekroki droga, int backTrack)
         char currentCharacter;
         char Directions[] = "GPDL";
         int wykonanoenqueue = 0;
+        int tempPos;
         for(int i = 0; i < 4; i++)
         {
             int position = newPositionGetter(originalPos, Directions[i]);
             fseek(default_file, position, SEEK_SET);
             fread(&currentCharacter, sizeof(char), 1, default_file);
             fseek(default_file, originalPos, SEEK_SET);
+            tempPos = position;
             if(currentCharacter == 'O'||currentCharacter == 'B'||currentCharacter == 'P')
             {
-                appendElement(droga, position, Directions[i]);
+                peekPath(droga,&position,&direction);
+                fseek(default_file, position, SEEK_SET);
+                fread(&currentCharacter, sizeof(char), 1, default_file);
+                fseek(default_file, originalPos, SEEK_SET);
+                //dodawaj na stos tylko rozwidlenia by nie przekroczyc pamieci
+                while(currentCharacter != 'B' && currentCharacter != 'K'){
+                    popElement(droga,&position,&direction);
+                    peekPath(droga,&position,&direction);
+                    fseek(default_file, position, SEEK_SET);
+                    fread(&currentCharacter, sizeof(char), 1, default_file);
+                    fseek(default_file, originalPos, SEEK_SET);
+                }
+                appendElement(droga, tempPos, Directions[i]);
                 wykonanoenqueue = 1;
                 break;
             }
@@ -129,7 +143,7 @@ int dfsSolve(FILE* default_file, obecnekroki droga, int backTrack)
 
 
 
-
+//Algorytm odpowiedzialny za znalezienie sciezek w labiryncie (najszybszej! bo szukamy szerokoscia)
 int bfsSearch(FILE* default_file, queue_t myQueue)
 {
     char direction;
@@ -221,33 +235,29 @@ int bfsSearch(FILE* default_file, queue_t myQueue)
 
     return 1;    
 }
-
-void transformAndWrite(FILE *inputFile, FILE *outputFile) {
+//funkcja ktora odzyskuje sciezke po zmianach w domyslnym pliku i wypisuje ja w nowym
+void transformAndWrite(int rows, int cols,FILE *inputFile, FILE *outputFile) {
     char c;
-    int charNum = 0;
+    long charNum = 0;
     long fileSize;
+    int capacity = rows * cols;
 
-    // Rewind file and check if either file pointer is NULL
     if (inputFile == NULL || outputFile == NULL) {
-        printf("Error opening file.\n");
+        printf("Blad otwierania jednego z plikow.\n");
         return;
     }
 
-    // Determine file size for boundary checks
-    fseek(inputFile, 0, SEEK_END);
-    fileSize = ftell(inputFile);
-    rewind(inputFile);
-
     // Read each character from the input file
-    while (fscanf(inputFile, "%c", &c) == 1) {
-        
+    while (charNum < capacity) {
+        fseek(inputFile, charNum, SEEK_SET);
+        fread(&c, sizeof(char), 1, inputFile);
         char Directions[] = "GPDL";
         if (c == 'B') {
             char currentCharacter;
             int transformToSpace = 0;
             for (int i = 0; i < 4; i++) {
                 int position = newPositionGetter(charNum, Directions[i]);
-                if (position >= 0 && position < fileSize) {  // Ensure within bounds
+                if (position >= 0 && position < capacity) { 
                     fseek(inputFile, position, SEEK_SET);
                     if (fread(&currentCharacter, sizeof(char), 1, inputFile) == 1) {
                         if (currentCharacter == 'S') {
@@ -279,13 +289,16 @@ void transformAndWrite(FILE *inputFile, FILE *outputFile) {
     }
 }
 
+
+
+
 int main() {
 
     FILE* default_file;
     char fileName[] = "test.txt";
     default_file = fopen(fileName, "r+");
     if (!default_file) {
-        perror("Error opening file eeeeeeee");
+        perror("Error opening file");
         return 1;
     }
 
@@ -329,7 +342,6 @@ int main() {
     queue_t myQueue = &myQueueStruct;
     initialize_queue(myQueue);
     enqueue(myQueue, posP, 'P');
-
    
     int result = 1;
     while(result != 0)
@@ -349,15 +361,66 @@ int main() {
         result = dfsSolve(default_file, droga, result);
     }
 
+    
+    int position;
+    int calkdroga = 0;
+    int currentPosition;
+    int dlugoscDrogi = 0;
+    char direction;
+    char currentDirection;
+    popElement(droga, &position, &direction);
+    currentDirection;
+    currentPosition;
+    char reversedDir[] = "DLGP";
+    char Directions[] = "GPDL";
+    while(droga->n > 0 || currentPosition == (posK - 1))
+    {
+        
+        popElement(droga, &currentPosition, &currentDirection);
+        
+        //Sa w tym samym wierszu
+        if((int)(position / mazeSize.columns) == (int)(currentPosition/mazeSize.columns))
+        {
+            dlugoscDrogi = abs(position - currentPosition);
+            //printf("Wiersz, Dlugosc drogi: %d\n", dlugoscDrogi);
+            
+            
+        }
+        //ta sama kolumna
+        else{
+            dlugoscDrogi = (int)((abs(position - currentPosition))/mazeSize.columns);
+            //printf("kolumna, Dlugosc drogi: %d\n", dlugoscDrogi);
+    
+        }
+
+        
+        calkdroga += dlugoscDrogi;
+        
+        if(direction != currentDirection)
+        {
+            for(int i = 0; i<4; i++){
+                if(direction == Directions[i])
+                {
+                    printf("Idz %d pola w kierunku %c\n",calkdroga,reversedDir[i]);
+                    calkdroga = 0;
+                }
+            }
+            
+        }
+        
+        position = currentPosition;
+        direction = currentDirection;
+    } 
+
+
+
+
     zwolnijkroki(droga);
-    
-    
 
     FILE* output_file;
     char fileName1[] = "result.txt";
     output_file = fopen(fileName1, "w");
-    transformAndWrite(default_file, output_file);
-
+    transformAndWrite(rows,columns,default_file, output_file);
     fclose(default_file);
     fclose(output_file);
     return 0;

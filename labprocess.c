@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "labprocess.h"
+#include <labprocess.h>
 
 //Sprawdza czy badane miejsce w labiryncie nadaje sie do wstawienia wierzcholka
 bool is_Valid(char* characters, char orgch) {
