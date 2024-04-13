@@ -39,7 +39,6 @@ void mark_Branching_Points(FILE* default_file, int rows, int cols) {
     char ch;
     char originalchar;
     char characters[5];
-    int ileO = 0;
 
     while (position < capacity) {
         //Mozna pominac pierwszy i ostatni wiersz bo to i tak same sciany
@@ -76,10 +75,8 @@ void mark_Branching_Points(FILE* default_file, int rows, int cols) {
             if (is_Valid(characters, originalchar)) {
               
                 fwrite("B", sizeof(char), 1, default_file);
-                ileO++;
                 
             }
         position++;
     }
-    printf("Tyle jest wierzcholkow --> %d\n", ileO);
 }

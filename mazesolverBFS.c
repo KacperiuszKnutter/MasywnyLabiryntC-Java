@@ -5,14 +5,9 @@
 #include <labprocess.h>
 #include <BFSqueue.h>
 #include <DFSstack.h>
-
-/*Tu bedzie glowny program, puszczamy bfs,
-kod dodam pozniej bo jest w miare ready,
-tylko trzeba mozliwe zmienic w strukturze kolejki dodanie child i parent bo bedzie potrzebne do odnajdywania sciezki ostatecznej
-*/
+#include <binaryfilechanger.h>
 
 
-// char peekPath()
 typedef struct MazeSize{
     int columns;
     int rows;
@@ -55,7 +50,7 @@ int dfsSolve(FILE* default_file, obecnekroki droga, int backTrack)
     fread(&originalchar, sizeof(char), 1, default_file);
     fseek(default_file, originalPos, SEEK_SET);
 
-    printf("[%c]\n", originalchar);
+    //printf("[%c]\n", originalchar);
 
     
     if(originalchar == 'P')
@@ -156,8 +151,8 @@ int bfsSearch(FILE* default_file, queue_t myQueue)
     fread(&originalchar, sizeof(char), 1, default_file);
     fseek(default_file, originalPos, SEEK_SET);
 
-    printf("[%c]\n", originalchar);
-    printf("[%d]\n", myQueue->ile_node);
+    //printf("[%c]\n", originalchar);
+    //printf("[%d]\n", myQueue->ile_node);
     if(originalchar == 'K')
     {
         printf("Koniec");
@@ -292,20 +287,83 @@ void transformAndWrite(int rows, int cols,FILE *inputFile, FILE *outputFile) {
 
 
 
-int main() {
-
-    FILE* default_file;
-    char fileName[] = "test.txt";
-    default_file = fopen(fileName, "r+");
-    if (!default_file) {
-        perror("Error opening file");
-        return 1;
-    }
-
+int main(int argc, char **argv) {
     int rows = 0, columns = 0, maxColumns = 0, maxRows = 0, iter = 0, posP = 0, posK = 0;
     char ch;
-    //o ile bajtow trzeba sie przesunac zeby znalezc P i K 
+    if (argc < 2) {
+        fprintf(stderr, "Aby uruchomic program podaj plik w formacie txt lub bin!");
+        return -1;
+    }
+    FILE* default_file;
+    char fileName[] = "test.txt";
+    // jesli plik ma rozszerzenie bin
+    if (strstr(argv[1], ".bin") != NULL) {
+        binFileHeader_t *header = malloc(sizeof(binFileHeader_t));
+        if (header == NULL) {
+            perror("Blad alokacji pamieci dla naglowka pliku binarnego!");
+            return -19;
+        }
 
+        mazeBuilder_t *mazeinfo = malloc(sizeof(mazeBuilder_t));
+        if (mazeinfo == NULL) {
+            perror("Blad alokacji pamieci dla specyfikacji labiryntu z pliku binarnego!");
+            free(header);
+            return -18;
+        }
+        //otwieramy go i czytamy
+        FILE *inputFile = fopen(argv[1], "rb");
+        if (!inputFile) {
+            perror("Blad otwierania pliku binarnego");
+            free(header);
+            free(mazeinfo);
+            return -1;
+        }
+
+        //printf("Znaleziono plik binarny, otwieramy: %s\n", argv[1]);
+        //tworzymy plik tekstowy do ktorego wpisujemy labirynt ktory bedzie rozwiazywany
+        default_file = fopen(fileName, "w");
+        if (!default_file) {
+            perror("Blad otwierania tworzonego pliku tekstowego");
+            fclose(inputFile);
+            free(header);
+            free(mazeinfo);
+            return -2;
+        }
+        //logika odpowiedzialna za odczytanie labiryntu z postaci binarnej
+        collectBinaryDdataAndWriteToFile(inputFile, header, mazeinfo, default_file);
+        //zamykamy gotowy plik jeden i drugi
+        fclose(inputFile);
+        fclose(default_file);
+        //zwalniamy pamiec struktur
+         default_file = fopen(fileName, "r+");
+            if (!default_file) {
+            perror("Blad otwierania pliku w przypaku binarnym");
+            return -11;
+            }
+        columns =header->Columns+2;
+        rows = header->Lines;
+        char c1,c2;
+        posP = columns * (header->EntryY-1) + (header->EntryX-1);
+        posK = columns * (header->ExitY-1) + (header->ExitX-1);
+        fseek(default_file,(long)posP,SEEK_SET);
+        fread(&c1,sizeof(char),1,default_file);
+        fseek(default_file,(long)posK,SEEK_SET);
+        fread(&c2,sizeof(char),1,default_file);
+        //("posP: %d\n",posP);
+        //printf("posK: %d\n",posK);
+        //printf("Znak posP: %c\n",c1);
+        //printf("Znak posK: %c\n",c2);
+        free(header);
+        free(mazeinfo);
+    }else{
+    //zaczynamy prace na pliku tekstowym ktory mozemy rozwiazac
+    default_file = fopen(fileName, "r+");
+    if (!default_file) {
+        perror("Blad otwierania pliku w przypadku tekstowym");
+        return -12;
+    }
+
+    //o ile bajtow trzeba sie przesunac zeby znalezc P i K 
     //petla while odpowiedzialna za czytanie liczby kolumn i wierszy oraz za wczytanie pozycji start oraz końcowej
     while ((ch = fgetc(default_file)) != EOF) {
         columns++;
@@ -325,98 +383,46 @@ int main() {
     }
     columns = maxColumns;
     rows = maxRows;
-
+    }
     rewind(default_file);
     //Tu plik z labiryntem ulega modyfikacji
     mark_Branching_Points(default_file, rows, columns);
 
-    printf("Columns: %d\n", columns);
+    //printf("Columns: %d\n", columns);
     mazeSize.columns = columns;
-    printf("Rows: %d\n", rows);
+    //printf("Rows: %d\n", rows);
     mazeSize.rows = rows;
-    printf("Pozycja Konc: %d\n", posK);
-    printf("Pozycja Pocz: %d\n", posP);
-
+    //printf("Pozycja Konc: %d\n", posK);
+    //printf("Pozycja Pocz: %d\n", posP);
     // //Na początku dodajemy polozenie startowe jako pierwszego node'a do kolejki
     struct Queue myQueueStruct;
     queue_t myQueue = &myQueueStruct;
     initialize_queue(myQueue);
     enqueue(myQueue, posP, 'P');
    
+   //Szukamy dopoki nie znajdziemy K
     int result = 1;
     while(result != 0)
     {
         
         result = bfsSearch(default_file, myQueue);
     }
-
+    //zwalniamy kolejke
     free_queue(myQueue);
 
+    //tworzymy stos krokow (wierzcholkow ktore sprawdzilismy)
     obecnekroki droga = zainiciuj();
     appendElement(droga, posK-1, 'L');
 
+    //usuwamy sciezki od konca ktore nie prowadza do poczatka tak by zostawic jedyna najkrotsza
     result = 1;
     while(result != 0)
     {
         result = dfsSolve(default_file, droga, result);
     }
-
-    
-    int position;
-    int calkdroga = 0;
-    int currentPosition;
-    int dlugoscDrogi = 0;
-    char direction;
-    char currentDirection;
-    popElement(droga, &position, &direction);
-    currentDirection;
-    currentPosition;
-    char reversedDir[] = "DLGP";
-    char Directions[] = "GPDL";
-    while(droga->n > 0 || currentPosition == (posK - 1))
-    {
-        
-        popElement(droga, &currentPosition, &currentDirection);
-        
-        //Sa w tym samym wierszu
-        if((int)(position / mazeSize.columns) == (int)(currentPosition/mazeSize.columns))
-        {
-            dlugoscDrogi = abs(position - currentPosition);
-            //printf("Wiersz, Dlugosc drogi: %d\n", dlugoscDrogi);
-            
-            
-        }
-        //ta sama kolumna
-        else{
-            dlugoscDrogi = (int)((abs(position - currentPosition))/mazeSize.columns);
-            //printf("kolumna, Dlugosc drogi: %d\n", dlugoscDrogi);
-    
-        }
-
-        
-        calkdroga += dlugoscDrogi;
-        
-        if(direction != currentDirection)
-        {
-            for(int i = 0; i<4; i++){
-                if(direction == Directions[i])
-                {
-                    printf("Idz %d pola w kierunku %c\n",calkdroga,reversedDir[i]);
-                    calkdroga = 0;
-                }
-            }
-            
-        }
-        
-        position = currentPosition;
-        direction = currentDirection;
-    } 
-
-
-
-
+    //Gdy nie korzystamy ze stosu zwalniamy pamiec
     zwolnijkroki(droga);
-
+    //tworzymy plik ze sciezka z przejsciem labiryntu
     FILE* output_file;
     char fileName1[] = "result.txt";
     output_file = fopen(fileName1, "w");
